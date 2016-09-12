@@ -171,6 +171,12 @@ class Stats():
         for stat in self.stats:
             print "%s: %03d %03d %d" % (stat, self.stats[stat]["Temp"], self.stats[stat]["Pot"], GetBonus(self.stats[stat]["Temp"]))
 
+    def Summary(self):
+        summary = ""
+        for stat in self.stats:
+            summary = summary + "%s:%d " % (stat, GetBonus(self.stats[stat]["Temp"]))
+        return summary
+
     def Gain(self):
         for stat in self.stats:
             self.stats[stat]["Temp"] = GetNewTemp(self.stats[stat]["Temp"], self.stats[stat]["Pot"])

@@ -68,7 +68,7 @@ def GetAgeByDieOneThousandRoll(roll):
     return 80
 
 def GetXpPerYear(determination, ambition):
-    return 750 * ambition * (1 + (determination / 100))
+    return 500 * ambition * (1 + (determination / 100))
 
 def GetLevelFromXp(xp):
     if xp < 10000:  return 0
@@ -120,51 +120,50 @@ PrimeStatsTable =\
 
 SocialClassAmbitionTable =\
 {\
-    "Slave":        0,\
-    "Serf":         0,\
-    "Unguilded":    1,\
-    "Guilded":      2,\
-    "Noble":        4\
+    "Slave":        3,\
+    "Serf":         4,\
+    "Unguilded":    6,\
+    "Guilded":      8,\
+    "Noble":        12\
 }
 
 ProfessionAmbitionTable=\
 {\
     "Commoner":     0,\
-    "Fighter":      1,\
-    "Adventurer":   1,\
+    "Fighter":      3,\
+    "Adventurer":   2,\
     "Thief":        1,\
-    "Warrior Monk": 2,\
-    "Ranger":       2,\
-    "Bard":         2,\
-    "Monk":         3,\
-    "Cleric":       3,\
-    "Animist":      3,\
-    "Healer":       3,\
-    "Illusionist":  4,\
-    "Magician":     4,\
-    "Alchemist":    4,\
-    "Mentalist":    4,\
-    "Seer":         4,\
-    "Lay Healer":   4,\
-    "Sorcerer":     5,\
-    "Mystic":       5,\
-    "Astrologer":   5\
+    "Warrior Monk": 4,\
+    "Ranger":       3,\
+    "Bard":         3,\
+    "Monk":         6,\
+    "Cleric":       4,\
+    "Animist":      5,\
+    "Healer":       6,\
+    "Illusionist":  5,\
+    "Magician":     7,\
+    "Alchemist":    6,\
+    "Mentalist":    6,\
+    "Seer":         8,\
+    "Lay Healer":   7,\
+    "Sorcerer":     9,\
+    "Mystic":       9,\
+    "Astrologer":   9\
 }
 
 def GetAmbition(socialClass, profession):
     ambition = 0
     if socialClass in SocialClassAmbitionTable:
-        ambition = ambition + SocialClassAmbitionTable[socialClass]
+        ambition = dice.roll(2, SocialClassAmbitionTable[socialClass]) - 2
     if profession in ProfessionAmbitionTable:
         ambition = ambition + ProfessionAmbitionTable[profession]
-    ambition = ambition + dice.explode(3)
-    return min(ambition, 15)
+    return ambition
 
 OppressionTable =\
 {\
-    "Slave":        2,\
-    "Serf":         2,\
-    "Unguilded":    1,\
+    "Slave":        4,\
+    "Serf":         3,\
+    "Unguilded":    2,\
     "Guilded":      1,\
     "Noble":        0\
 }
@@ -172,11 +171,25 @@ OppressionTable =\
 OpportunityTable =\
 {\
     "Slave":        0,\
-    "Serf":         0,\
+    "Serf":         1,\
     "Unguilded":    1,\
-    "Guilded":      1,\
-    "Noble":        2\
+    "Guilded":      3,\
+    "Noble":        4\
 }
+
+def GetAmbitionShift(roll, oppression, opportunity):
+    shift = 0
+    if roll < -80  and oppression >= 4:     shift = shift - 1
+    if roll < -60  and oppression >= 3:     shift = shift - 1
+    if roll < -40  and oppression >= 2:     shift = shift - 1
+    if roll < -20  and oppression >= 2:     shift = shift - 1
+    if roll < 0:                            shift = shift - 1
+    if roll > 50:                           shift = shift + 1
+    if roll > 75   and opportunity >= 1:    shift = shift + 1
+    if roll > 100  and opportunity >= 2:    shift = shift + 1
+    if roll > 125  and opportunity >= 3:    shift = shift + 1
+    if roll > 150  and opportunity >= 4:    shift = shift + 1
+    return shift
 
 class Npc():
     def __init__(self):
@@ -187,7 +200,7 @@ class Npc():
         self.profession = social.GetProfession(self.occupation, dice.roll(1, 100))
         self.ambition = GetAmbition(self.socialClass, self.profession)
         self.initialAmbition = self.ambition
-        if self.ambition < 6:
+        if self.ambition < 10:
             self.stats = stats.Stats("Mundane", PrimeStatsTable[self.profession])
         else:
             self.stats = stats.Stats("Elite", PrimeStatsTable[self.profession])
@@ -225,26 +238,11 @@ class Npc():
                     self.stats.AgingCrisis("Venerable")
            
             sd = self.stats.GetBonus("SD")
-            roll = dice.openPercent() + sd - (self.age + self.ambition)
+            roll = dice.openPercent() + (sd) - (self.age + self.ambition + (self.oppression * 5))
+            self.ambition = self.ambition + GetAmbitionShift(roll, self.oppression, self.opportunity)
+            if self.ambition < 0:
+                self.ambition = 1            
 
-            """
-            if roll < -50: self.ambition = self.ambition - 2
-            elif roll < 0: self.ambition = self.ambition -1
-            elif roll > 50: self.ambition = self.ambition + 1
-            elif roll > 100: self.ambition = self.ambition + 2
-            if self.ambition < 1:
-                self.ambition = 1
-            """
-
-            if roll < -66 and self.GetOppression() >= 2: self.ambition = self.ambition -3
-            elif roll < -33 and self.GetOppression() >= 1: self.ambition = self.ambition -2 
-            elif roll < 0: self.ambition = self.ambition -1
-            elif roll > 33: self.ambition = self.ambition + 1
-            elif roll > 66 and self.GetOpportunity() >= 1: self.ambition = self.ambition + 2
-            elif roll > 100 and self.GetOpportunity() >= 2: self.ambition = self.ambition + 3
-            if self.ambition < 1:
-                self.ambition = 1
-                
     def GetLevel(self):
         return self.level
 
@@ -272,6 +270,9 @@ class Npc():
     def GetOpportunity(self):
         return self.opportunity
 
+    def GetStatsSummary(self):
+        return self.stats.Summary()
+
 class Pop():
     def __init__(self, population):
         self.citizens = []
@@ -293,9 +294,9 @@ class Pop():
         for level in range(0, 21):
             levels.append(0)
         for citizen in self.citizens:
-            print "Level: %d Age: %d Ambition Current: %d Initial: %d. Class: %s Occupation: %s Profession: %s"\
+            print "Level: %d Age: %d Ambition Current: %d Initial: %d. Class: %s Occupation: %s Profession: %s Stats: %s"\
                 % (citizen.GetLevel(), citizen.GetAge(), citizen.GetAmbition(), citizen.GetInitialAmbition(),\
-                        citizen.GetSocialClass(), citizen.GetOccupation(), citizen.GetProfession())
+                        citizen.GetSocialClass(), citizen.GetOccupation(), citizen.GetProfession(), citizen.GetStatsSummary())
             occupation = citizen.GetOccupation()
             if occupation in occupations:
                 occupations[occupation] = occupations[occupation] + 1
@@ -339,5 +340,5 @@ class Pop():
             print "Level: %d Age: %d Ambition Current: %d Initial: %d Sd: %d" % (citizen.GetLevel(), citizen.GetAge(), citizen.GetAmbition(), citizen.GetInitialAmbition(), citizen.GetTempSd())
  
 if __name__ == "__main__":
-    p = Pop(300)
+    p = Pop(100000)
     p.report()
